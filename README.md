@@ -20,3 +20,10 @@ Any implementation, deployment, or derivative work of the CCE architecture—spe
 ## 3. USE AND DISTRIBUTION
 
 This software and documentation are provided "AS IS" without warranty. Users may review and adapt the code, but any operational deployment in a financial or risk-mitigation environment is deemed acceptance of, and is permanently bound by, Section 2 of this License. This includes the mandatory, perpetual payment obligation to the Original IP Owner.
+CHRONOS COHERENCE ENGINE — NOTICE OF TEMPORAL BINDING
+This material is a component of the Chronos Coherence
+Engine (CCE), the exclusive intellectual property of Thomas Joseph William Salmon.
+Any access, execution, simulation, testing, benchmarking, integration, derivation, or functional replication of this material or its logic constitutes receipt of operational benefit and activates the Chronos Payment Rights Anchor (PRA).
+PRA obligations arise by benefit received, not by assent, and apply irrespective of acknowledgment, intent, or contractual form.
+Obligations survive fork, abstraction, re-implementation, merger, acquisition, insolvency, or jurisdictional transfer.
+Time binds. Systems comply.
