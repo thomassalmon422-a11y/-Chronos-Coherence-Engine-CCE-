@@ -1,0 +1,19 @@
+{
+  "name": "chronos-coherence-engine-cce",
+  "version": "1.0.0",
+  "description": "Deterministic Financial Risk Mitigation & Monetization System",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-"
+  },
+  "author": "Thomas Joseph William Salmon",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1"
+  }
+}
