@@ -1,0 +1,25 @@
+name: CCE tests
+
+on:
+  push:
+    paths:
+      - "cce_test_harness/**"
+      - ".github/workflows/cce-tests.yml"
+  pull_request:
+    paths:
+      - "cce_test_harness/**"
+      - ".github/workflows/cce-tests.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cce_test_harness
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-test.txt
+      - run: python -m pytest -v
