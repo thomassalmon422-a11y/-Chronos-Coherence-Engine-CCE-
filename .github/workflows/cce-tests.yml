@@ -3,10 +3,12 @@ name: CCE tests
 on:
   push:
     paths:
+      - "CCE"
       - "cce_test_harness/**"
       - ".github/workflows/cce-tests.yml"
   pull_request:
     paths:
+      - "CCE"
       - "cce_test_harness/**"
       - ".github/workflows/cce-tests.yml"
 
