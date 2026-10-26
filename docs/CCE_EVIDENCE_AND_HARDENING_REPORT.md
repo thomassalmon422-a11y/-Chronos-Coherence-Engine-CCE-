@@ -1,89 +1,103 @@
-# Chronos Coherence Engine (CCE): Evidence and Hardening Report
+# CCE Evidence and Hardening Report
 
-**Report date:** 2026-10-25  
-**Repository:** [thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-)  
-**Scope:** Source inspection of the current `main` runtime plus the additive hardening reference core and tests on branch `cce-hardening-tests`.  
-**Status:** Evidence report; not a production certification, financial audit, legal opinion, or proof of deployment.
+**Updated:** 2026-10-25  
+**Repository:** [CCE repository](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-)  
+**Current review:** [PR #6 — Harden actual CCE runtime and add direct runtime tests](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-/pull/6)  
+**Scope:** Source inspection and automated tests of the top-level CCE runtime on the PR branch. This is not a production certification, independent security audit, financial audit, or legal opinion.
 
 ## 1. Executive summary
 
-The repository contains a prototype CCE runtime and an additive test harness. The harness exercises input validation, the financial calculation pipeline, risk-threshold boundaries, and an in-memory SHA-256 hash chain. The GitHub Actions run previously recorded for the harness reports **45 passed**.
+The actual top-level CCE runtime has now been changed and tested directly. GitHub Actions reports **77 passed in 0.11s** on the proposed PR revision. The suite includes the earlier reference-core tests and the new tests that load and exercise CCE itself.
 
-That result supports a narrow claim: the isolated reference core passed its unit tests in that CI run. It does **not** establish that the existing `CCE` runtime is integrated with the tested core, that market or threat feeds are connected, that funds or transactions are actually blocked, that latency is zero, that the ledger is durable/immutable, or that the repository's legal and royalty assertions are enforceable.
+The runtime changes address input validation, alert threshold direction, decimal calculation rounding, computed SHA-256 hash chaining, and clearer labeling of synthetic data and local decisions. This result supports the claim that the current test suite passes against the proposed code revision. It does not prove live feed ingestion, durable or externally anchored storage, real transaction blocking, zero latency, production readiness, or legal effect.
 
-## 2. Evidence register
+## 2. Current test evidence
 
-| ID | Evidence | Observation | What it supports | What it does not support |
-|---|---|---|---|---|
-| E-01 | [Original runtime: `CCE`](../CCE) | `RiskReport.is_alert` is assigned `risk_score < RISK_THRESHOLD`. | The current source uses a less-than comparison. | Whether this is intended without an approved risk-score definition; under the convention “higher score = higher risk,” it is inverted. |
-| E-02 | [Original runtime: `CCE`](../CCE) | `aether_sentinel_scan()` selects from hard-coded baselines and uses Python's `random` module to generate volatility/anomaly values. | The displayed scan behavior is simulated/randomized. | Live market, cyber, or geopolitical data ingestion. |
-| E-03 | [Original runtime: `CCE`](../CCE) | `LEDGER_HASH` is a fixed string and `ultra_strang_commit()` assigns it to every entry. | Each printed entry receives a constant marker. | A computed cryptographic hash chain, durable persistence, independent verification, or immutability. |
-| E-04 | [Original runtime: `CCE`](../CCE) | The code prints `SUCCESS_ZERO_LATENCY` and “FLOW BLOCKED” messages. | Those status strings are emitted by the program path. | Measured zero latency, external enforcement, or proof that an actual transaction was blocked. |
-| E-05 | [Hardening reference core](../cce_test_harness/cce_core.py) | Finite-number/range validation, a `risk_score >= threshold` predicate, canonical JSON hashing, and a SHA-256-linked in-memory ledger are implemented. | The reference core's specified behavior can be unit-tested. | Production integration, durable storage, external anchoring, access controls, or tamper resistance against an actor able to rewrite the whole chain. |
-| E-06 | [Hardening tests](../cce_test_harness/test_cce.py) | Tests cover calculation examples, invalid numeric inputs, threshold boundaries, hash verification, tampering, broken links, reordering, truncation, and full-chain rewrite limitations. | The listed cases are encoded as tests. | Coverage of all runtime paths, deployment configuration, or independent security review. |
-| E-07 | [GitHub Actions run](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-/actions/runs/40210631537) | The recorded CI result was 45 passing tests. | The isolated harness passed in that recorded run. | A current run on a later commit, or tests against the original `CCE` module. |
-| E-08 | [Pull request #4](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-/pull/4) | The hardening harness was proposed as an additive change. | A reviewable change set exists. | That it has been merged into `main`. |
+- **Workflow:** [GitHub Actions run 40218255323](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-/actions/runs/40218255323)
+- **Recorded output:** 77 passed in 0.11s
+- **Runtime tests:** [cce_test_harness/test_runtime.py](../cce_test_harness/test_runtime.py)
+- **Runtime under test:** [CCE](../CCE)
+- **PR:** [#6](https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-/pull/6)
+- **Status:** PR open and not merged at the time of this report.
 
-## 3. Reproduction
+The direct tests load the extensionless top-level CCE file using Python's SourceFileLoader; they do not merely import cce_test_harness/cce_core.py.
 
-From the repository root, install the test dependency and run the harness:
+## 3. Changes made to the actual runtime
+
+| Area | Change | Evidence/limitation |
+|---|---|---|
+| Risk threshold | Alerts when risk_score >= RISK_THRESHOLD; validates score and threshold ranges. | Assumes the intended contract is “higher score means greater risk.” Confirm this domain contract before production use. |
+| Input validation | Rejects invalid source IDs, booleans/non-finite numeric inputs, out-of-range scores, and negative values. | Test coverage is not exhaustive formal verification. |
+| Financial calculations | Uses Decimal internally and explicit ROUND_HALF_UP rounding to four decimal places. | Four decimals is a code-level prototype policy, not an approved currency/accounting standard. |
+| Audit chain | Replaces constant marker with canonical JSON, SHA-256 entry hashes, previous-hash links, and verify_ledger(). | Ledger remains in process memory; it is neither durable nor inherently immutable. |
+| Scanner | Explicitly marks randomized source scores as synthetic simulation. | No external market, cyber, or geopolitical feed is connected. |
+| Enforcement messaging | Clarifies that “Blocked” means a local threshold decision and does not prove an external transaction was blocked. | No payment rail, trading venue, or transaction API is integrated. |
+| Policy messaging | Removes claims that program output establishes legal immunity or overrides regulations. | No legal determination is made by this code or report. |
+| CI | Workflow triggers when CCE, tests, or the workflow definition changes. | A passing test suite does not replace review, deployment validation, or operational monitoring. |
+
+## 4. Important test coverage
+
+The CI run passed tests for:
+- Threshold boundary behavior, including exactly 0.85.
+- Invalid and non-finite risk and transaction inputs.
+- The ZDAV → premium → PRA calculation example.
+- Local alert and stable branches.
+- Hash uniqueness/linkage, payload tampering, and broken-link detection.
+- The known truncation limitation.
+- Synthetic scanner labeling.
+- Invalid demo counts and invalid enforcement input types.
+- Existing isolated reference-core tests.
+
+## 5. Known limitations and remaining risks
+
+### L-01 — The ledger is not durable or independently immutable
+
+The chain detects payload edits and broken links when checked against the retained chain. Since it is held in process memory, it is lost on process exit unless separately persisted. A valid prefix can still verify after tail truncation, and a fully rewritten chain can be made internally consistent. Add durable append-only storage and externally controlled signed checkpoints before relying on it as an audit record.
+
+### L-02 — Synthetic scanner, no live feed
+
+aether_sentinel_scan() uses hard-coded baselines and randomized values. The output is for simulation only. Real feed adapters need source provenance, timestamps, schema validation, timeout/failure handling, and fixture-backed tests.
+
+### L-03 — “Blocked” is a local return value
+
+g_shield_enforce() returns "Blocked" for a report above the threshold, but the module has no external transaction-control integration. This is a local decision/status label, not evidence of a real transaction being rejected or stopped. A sandbox integration test must demonstrate the full request/response lifecycle before making such a claim.
+
+### L-04 — No zero-latency or performance claim
+
+No latency benchmark is included. Any future performance claim should use measured timings and report a distribution such as p50/p95/p99 under a documented workload.
+
+### L-05 — Financial and operational production readiness
+
+The current four-decimal rounding is explicit and testable but not a complete accounting policy. Production work needs an agreed currency/precision model, rounding and reconciliation rules, overflow limits, operational logging, access controls, persistence, and independent security/domain review.
+
+### L-06 — Legal effect is out of scope
+
+The code cannot establish that a policy overrides applicable law, exempts a party from liability, or binds third parties. Those are legal questions requiring the actual agreements and qualified jurisdiction-specific review.
+
+## 6. Reproduction
+
+From the repository root:
 
 ```bash
 python -m pip install -r cce_test_harness/requirements-test.txt
-python -m pytest -q cce_test_harness
+python -m pytest -v cce_test_harness
 ```
 
-Expected result for the previously recorded CI revision: **45 passed**. Results may differ if the branch changes; preserve the commit SHA and full test output for each new evidence capture.
+Use the exact commit and workflow URL when recording a future run. Test results can change with subsequent commits.
 
-## 4. Findings and risk
+## 7. Engineering gates before production
 
-### F-01 — Risk threshold semantics need an explicit contract
+1. Confirm and document the risk-score contract and alert boundary.
+2. Add a real feed interface with provenance and robust failure behavior.
+3. Add durable append-only ledger storage and an independently controlled checkpoint/anchor.
+4. Test restart recovery, tampering, truncation, replay, and retention.
+5. Approve currency, precision, rounding, and reconciliation policy.
+6. Integrate a sandbox transaction adapter and verify outcomes end-to-end.
+7. Measure latency and reliability under a defined workload.
+8. Complete independent security, operational, and domain review.
 
-The original runtime sets `is_alert = risk_score < RISK_THRESHOLD`. The reference core instead uses `risk_score >= threshold`, matching the convention that a higher risk score should trigger an alert. This is a material behavior difference. Before runtime integration, document whether larger values mean more risk, confirm the boundary behavior at exactly the threshold, and approve the change with regression tests.
+## 8. Disposition
 
-### F-02 — Scan inputs are simulated
+**Current disposition: hardened prototype with a passing 77-test CI suite, including direct tests of the actual CCE runtime. PR #6 remains open and unmerged.**
 
-The current scan function uses hard-coded source baselines and random perturbations. Treat its outputs as synthetic simulation values, not observations from external feeds. A real-feed adapter needs explicit source provenance, timestamps, schema validation, failure/timeout handling, and tests with recorded fixtures before its outputs are described as live.
-
-### F-03 — Current ledger marker is not a cryptographic ledger
-
-The original runtime attaches the same fixed string to each record. The reference implementation computes SHA-256 over canonicalized payloads and links each record to the previous hash, but keeps the chain only in process memory. A hash chain detects many edits when the verifier has a trusted copy; by itself it cannot prevent truncation or a full-chain rewrite by an actor able to rewrite all entries. Stronger evidence requires durable append-only storage and a separately controlled checkpoint/anchor, plus documented key and access-control practices where applicable.
-
-### F-04 — Status messages are not measured outcomes
-
-Printed labels such as `SUCCESS_ZERO_LATENCY`, `IMMUTABLE`, or `FLOW BLOCKED` are not independent evidence of the corresponding properties. Use measured monotonic-clock timings and report distributions (for example p50/p95/p99) for latency claims. Demonstrate transaction blocking only in a controlled integration test with an explicit mock or sandbox adapter; do not imply a real financial rail was blocked based on console output.
-
-### F-05 — Financial calculations need a production rounding policy
-
-The prototype uses binary floating-point arithmetic. The reference harness validates finite inputs and rounds to four decimal places for deterministic tests, but this is not a complete financial accounting policy. Before production use, specify currency, precision, rounding mode, overflow limits, fee basis, and reconciliation rules; use decimal or integer minor-unit arithmetic appropriate to the domain.
-
-### F-06 — Legal statements are not self-validating code outcomes
-
-The runtime prints broad legal/policy statements. Program output does not establish that a policy overrides law, exempts a party from liability, creates a royalty obligation, or binds a third party. Those questions require the applicable agreements, jurisdictional facts, and qualified legal review. This report makes no legal conclusion.
-
-## 5. Next engineering gates
-
-Do not represent the prototype as production-ready until the following gates have evidence attached:
-
-1. **Behavior contract:** define score direction and threshold semantics; add tests against the original runtime behavior.
-2. **Runtime integration:** refactor the original module to call the tested calculation/validation functions, with compatibility tests for existing public functions and return values.
-3. **Input adapters:** clearly separate synthetic simulation from real-feed adapters; validate provenance, schema, timestamps, and failure cases.
-4. **Ledger:** persist records, verify chains after restart, and anchor checkpoints outside the same writable store. Add tampering, truncation, replay, and recovery tests.
-5. **Financial precision:** approve currency/precision/rounding requirements and add boundary/overflow/reconciliation tests.
-6. **Enforcement evidence:** use sandbox transaction adapters and measured timing; distinguish attempted, accepted, rejected, and confirmed-blocked outcomes.
-7. **CI evidence:** run tests on the exact proposed commit; retain commit SHA, workflow URL, test output, and review status.
-8. **Independent review:** obtain security and domain review before any deployment involving real money, regulated decisions, or production threat response.
-
-## 6. Evidence handling and limitations
-
-- This is a source-and-test review, not a penetration test or external audit.
-- The test result is tied to the recorded workflow revision; rerun tests after changes.
-- The test harness is a reference implementation and is not yet evidence that the original runtime uses those hardened functions.
-- The original runtime and reference core must be treated as separate until integration tests demonstrate otherwise.
-- No live feed, payment rail, external storage service, legal authority, or production environment was independently verified for this report.
-
-## 7. Current disposition
-
-**Disposition: prototype with a passing isolated test harness; runtime integration and operational claims remain unverified.**
-
-The next change should integrate the hardened behavior only after the risk-score contract is confirmed, preserve the current runtime API where feasible, and add tests that execute the actual runtime module. Do not merge or deploy based solely on the isolated 45-test result.
+The current evidence is materially stronger than the earlier isolated-harness-only state. It still does not justify describing CCE as production-ready or claiming live data, durable immutability, legal enforcement, zero latency, or real-world transaction blocking.
