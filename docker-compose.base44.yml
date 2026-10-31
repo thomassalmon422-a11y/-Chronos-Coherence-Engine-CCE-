@@ -1,0 +1,44 @@
+# Base44 development environment for the Chronos Coherence Engine (CCE) repo.
+#
+# The repository is a Python simulation prototype with a static landing page
+# (index.html). There is no frontend build step and no database, so the web
+# entry point is a plain static file server bound to the repo source: edits to
+# index.html are visible on refresh without rebuilding anything.
+#
+#   docker compose -f docker-compose.base44.yml up -d
+#   docker compose -f docker-compose.base44.yml run --rm tests
+services:
+  web:
+    image: python:3.12-slim
+    working_dir: /app
+    command: ["python", "-m", "http.server", "3000", "--bind", "0.0.0.0", "--directory", "/app"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+    labels:
+      base44.project: "Chronos Coherence Engine"
+      base44.kind: "web"
+      base44.port: "3000"
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/index.html', timeout=3).read(1)"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: on-failure
+
+  tests:
+    image: python:3.12-slim
+    working_dir: /app/cce_test_harness
+    command: ["sh", "-ec", "pip install --no-cache-dir -r requirements-test.txt && exec python -m pytest -q"]
+    volumes:
+      - ./:/app
+    profiles: ["tools"]
+    labels:
+      base44.project: "CCE tests"
+      base44.kind: "worker"
