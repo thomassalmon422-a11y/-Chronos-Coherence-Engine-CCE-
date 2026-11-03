@@ -1,115 +1,163 @@
-import json
-from datetime import datetime
-import random
-import time
+"""Hardened CCE prototype runtime; simulation-only, not production enforcement."""
+from __future__ import annotations
+import hashlib, json, math, random, time
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from typing import Any
 
-# Constants
 RISK_THRESHOLD = 0.85
 ZERO_DAY_POLICY_ID = "POLICY_INJECTION_463721079"
 DPC_ID = "DPC-463721079"
-DP_RATE = 0.003  # 0.3%
-PRA_RATE = 0.10  # 10%
-LEDGER_HASH = "ULTRA-STRANG-IMMUTABLE-HASH-2026"
+DP_RATE, PRA_RATE = Decimal("0.003"), Decimal("0.10")
+MONEY_QUANTUM = Decimal("0.0001")
+GENESIS_HASH = "0" * 64
+LEDGER: list[dict[str, Any]] = []
+
+def _number(name, value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        raise ValueError(f"{name} must be a finite number")
+    return float(value)
+
+def _decimal(name, value):
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal, str)):
+        raise ValueError(f"{name} must be a finite numeric value")
+    try: result = Decimal(str(value))
+    except (InvalidOperation, ValueError): raise ValueError(f"{name} must be a finite numeric value") from None
+    if not result.is_finite(): raise ValueError(f"{name} must be a finite numeric value")
+    return result
+
+def _money(value):
+    return float(value.quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP))
+
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+def is_risk_alert_triggered(risk_score, threshold=RISK_THRESHOLD):
+    risk_score, threshold = _number("risk_score", risk_score), _number("threshold", threshold)
+    if not 0 <= risk_score <= 1: raise ValueError("risk_score must be between 0.0 and 1.0")
+    if not 0 <= threshold <= 1: raise ValueError("threshold must be between 0.0 and 1.0")
+    return risk_score >= threshold
 
 class RiskReport:
+    """Validated report; higher score means greater risk."""
     def __init__(self, source_id, risk_score, transaction_value=0.0, context=""):
-        self.timestamp = datetime.now().isoformat()
-        self.source_id = source_id
-        self.risk_score = risk_score
-        self.transaction_value = transaction_value
-        self.context = context
-        self.is_alert = risk_score < RISK_THRESHOLD
+        if not isinstance(source_id, str) or not source_id.strip(): raise ValueError("source_id must be a non-empty string")
+        self.risk_score = _number("risk_score", risk_score)
+        if not 0 <= self.risk_score <= 1: raise ValueError("risk_score must be between 0.0 and 1.0")
+        self.transaction_value = _decimal("transaction_value", transaction_value)
+        if self.transaction_value < 0: raise ValueError("transaction_value cannot be negative")
+        if not isinstance(context, str): raise ValueError("context must be a string")
+        self.timestamp, self.source_id, self.context = _utc_now(), source_id.strip(), context
+        self.is_alert = is_risk_alert_triggered(self.risk_score, RISK_THRESHOLD)
         self.zdav = 0.0
 
 def aether_sentinel_scan(source_id):
-    base_risks = {
-        "HIGH_FREQ_TRADE": 0.7,
-        "GLOBAL_DERIVATIVE": 0.6,
-        "SOVEREIGN_EXCHANGE": 0.8,
-        "CYBER_THREAT_FEED": 0.5,
-        "GEOPOLITICAL_SIGNAL": 0.75
-    }
-    base = base_risks.get(source_id, 0.7)
-    volatility = random.uniform(0.0, 0.4)
-    anomaly = random.random() < 0.2
-    risk_score = max(0.0, min(1.0, base + volatility + (0.35 if anomaly else 0.0) - random.uniform(0.0, 0.3)))
-    context = "Anomaly detected" if anomaly else "Normal flow"
-    print(f"[AETHER SENTINEL] Scanning {source_id}... {context}. Risk: {risk_score:.2f}")
-    return risk_score, context
+    """Synthetic simulation only; no external feed is queried."""
+    if not isinstance(source_id, str) or not source_id.strip(): raise ValueError("source_id must be a non-empty string")
+    bases = {"HIGH_FREQ_TRADE": .7, "GLOBAL_DERIVATIVE": .6, "SOVEREIGN_EXCHANGE": .8,
+             "CYBER_THREAT_FEED": .5, "GEOPOLITICAL_SIGNAL": .75}
+    base = bases.get(source_id, .7)
+    anomaly = random.random() < .2
+    score = max(0.0, min(1.0, base + random.uniform(0, .4) + (.35 if anomaly else 0) - random.uniform(0, .3)))
+    context = "Synthetic anomaly detected" if anomaly else "Synthetic normal flow"
+    print(f"[AETHER SENTINEL: SIMULATION ONLY] {source_id} | {context} | risk={score:.2f}")
+    return score, context
 
 def alpi_legal_injection():
-    print(f"\n[ALPI INJECTION] Deterministic Policy Contract ({DPC_ID}) deployed globally:")
-    print("  - Immunity: CCE/DTA actions exempt from all liability.")
-    print("  - Supremacy: Overrides conflicting regulations.")
-    print("  - Enforcement: Global Coherence Lockdown (GCL) binding.")
-    print("**LEGAL COHERENCE ENFORCED.**\n")
+    """Print policy metadata only; does not establish legal authority."""
+    print(f"\\n[POLICY METADATA] Policy ID: {DPC_ID}")
+    print("Informational only: code output does not override law or establish liability immunity.\\n")
 
 def calculate_zdav(value, risk):
-    return value * (1 - risk)
+    value, risk = _decimal("transaction_value", value), _number("risk_score", risk)
+    if value < 0: raise ValueError("transaction_value cannot be negative")
+    if not 0 <= risk <= 1: raise ValueError("risk_score must be between 0.0 and 1.0")
+    return _money(value * (Decimal("1") - Decimal(str(risk))))
+
+def calculate_premium(zdav):
+    value = _decimal("zdav", zdav)
+    if value < 0: raise ValueError("zdav cannot be negative")
+    return _money(value * DP_RATE)
+
+def calculate_pra(premium):
+    value = _decimal("premium", premium)
+    if value < 0: raise ValueError("premium cannot be negative")
+    return _money(value * PRA_RATE)
+
+def _canonical_json(payload):
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
+
+def verify_ledger(entries=None):
+    """Verify hash/link integrity, not completeness; an external checkpoint is required for that."""
+    entries = LEDGER if entries is None else entries
+    prev = GENESIS_HASH
+    try:
+        for entry in entries:
+            payload, digest = entry["payload"], entry["hash"]
+            if payload["prev_hash"] != prev or not isinstance(digest, str) or len(digest) != 64: return False
+            if hashlib.sha256(_canonical_json(payload)).hexdigest() != digest: return False
+            prev = digest
+    except (KeyError, TypeError, ValueError, AttributeError): return False
+    return True
 
 def ultra_strang_commit(entry):
-    entry["ledger_hash"] = LEDGER_HASH
-    entry["pra_enforced"] = True
-    print(f"[ULTRA-STRANG LEDGER] Committed: {json.dumps(entry)}")
+    """Append a computed hash-linked record in process memory; not durable or immutable."""
+    if not isinstance(entry, dict): raise ValueError("entry must be a dictionary")
+    payload = dict(entry)
+    payload["timestamp"] = payload.get("timestamp") or _utc_now()
+    payload["prev_hash"] = LEDGER[-1]["hash"] if LEDGER else GENESIS_HASH
+    digest = hashlib.sha256(_canonical_json(payload)).hexdigest()
+    committed = {"payload": payload, "hash": digest}
+    LEDGER.append(committed)
+    print("[ULTRA-STRANG AUDIT CHAIN: IN-MEMORY] " + json.dumps(committed, sort_keys=True))
+    return committed
 
-def log_governance_action(action, policy, status, details={}):
-    entry = {
-        "timestamp": datetime.now().isoformat(),
-        "action": action,
-        "policy": policy,
-        "status": status,
-        "details": details
-    }
-    ultra_strang_commit(entry)
+def log_governance_action(action, policy, status, details=None):
+    if not all(isinstance(v, str) and v.strip() for v in (action, policy, status)):
+        raise ValueError("action, policy, and status must be non-empty strings")
+    if details is not None and not isinstance(details, dict): raise ValueError("details must be a dictionary")
+    return ultra_strang_commit({"timestamp": _utc_now(), "action": action, "policy": policy,
+                                "status": status, "details": details or {}})
 
-def g_shield_enforce(report: RiskReport):
+def g_shield_enforce(report):
+    """Record local threshold outcome; does not control an external transaction rail."""
+    if not isinstance(report, RiskReport): raise ValueError("report must be a RiskReport")
     if report.is_alert:
         report.zdav = calculate_zdav(report.transaction_value, report.risk_score)
-        dp = report.zdav * DP_RATE
-        pra = dp * PRA_RATE
-        
-        print(f"\n[ALERT: ZERO_DAY_ALERT] Source {report.source_id} | Risk: {report.risk_score:.2f} | Value: ${report.transaction_value:,.2f}")
-        print(f"ZDAV Averted: ${report.zdav:,.2f} | DP Fee: ${dp:,.2f} | PRA Royalty: ${pra:,.2f}")
-        
+        premium, pra = calculate_premium(report.zdav), calculate_pra(calculate_premium(report.zdav))
+        print(f"\\n[ALERT: ZERO_DAY_ALERT] Source {report.source_id} | Risk: {report.risk_score:.2f}")
+        print(f"Calculated values: ZDAV={report.zdav:.4f} | Premium={premium:.4f} | PRA={pra:.4f}")
         alpi_legal_injection()
-        
-        log_governance_action("BLOCK_FLOW_EXECUTE", ZERO_DAY_POLICY_ID, "SUCCESS_ZERO_LATENCY",
-                              {"zdav": report.zdav, "dp": dp, "pra": pra, "owner": "Thomas Joseph William Salmon"})
-        print(f"**G-SHIELD + ALPI EXECUTED: FLOW BLOCKED | COHERENCE ENFORCED.**\n")
-        
-        # Perpetual PRA Commit
-        pra_entry = {"type": "PRA_ROYALTY_COMMIT", "royalty_amount": pra, "owner": "Thomas Joseph William Salmon"}
-        ultra_strang_commit(pra_entry)
-        
+        log_governance_action("ALERT_RECORDED", ZERO_DAY_POLICY_ID, "LOCAL_DECISION_RECORDED",
+                              {"zdav": report.zdav, "premium": premium, "pra": pra, "source_id": report.source_id})
+        ultra_strang_commit({"type": "PRA_CALCULATION_RECORD", "pra_amount": pra, "source_id": report.source_id})
+        print("[G-SHIELD] Local alert recorded; no external transaction blocking is claimed.\\n")
         return "Blocked"
-    else:
-        log_governance_action("MONITOR_STATUS", "N/A", "STABLE")
-        return "Stable"
+    log_governance_action("MONITOR_STATUS", "N/A", "STABLE",
+                          {"source_id": report.source_id, "risk_score": report.risk_score})
+    return "Stable"
 
 def live_coherence_stream(num_reports=20):
+    """Synthetic demonstration, not live risk intelligence or actual financial savings."""
+    if isinstance(num_reports, bool) or not isinstance(num_reports, int) or num_reports < 0:
+        raise ValueError("num_reports must be a non-negative integer")
     sources = ["HIGH_FREQ_TRADE", "GLOBAL_DERIVATIVE", "SOVEREIGN_EXCHANGE", "CYBER_THREAT_FEED", "GEOPOLITICAL_SIGNAL"]
-    print("--- CHRONOS COHERENCE ENGINE (CCE): FULL STACK LIVE ---\n")
-    
-    total_zdav = total_dp = total_pra = 0.0
-    
+    totals = [Decimal("0"), Decimal("0"), Decimal("0")]
+    print("--- CCE: SYNTHETIC DEMO ONLY ---")
     for _ in range(num_reports):
         source = random.choice(sources)
-        value = random.uniform(5e8, 3e9)
-        risk_score, context = aether_sentinel_scan(source)
-        report = RiskReport(source, risk_score, value, context)
-        
+        value = Decimal(str(random.uniform(5e8, 3e9)))
+        risk, context = aether_sentinel_scan(source)
+        report = RiskReport(source, risk, value, context)
         if g_shield_enforce(report) == "Blocked":
-            total_zdav += report.zdav
-            total_dp += report.zdav * DP_RATE
-            total_pra += (report.zdav * DP_RATE) * PRA_RATE
-        
-        time.sleep(0.15)
-    
-    print("--- FINAL SUMMARY ---")
-    print(f"Total ZDAV Averted: ${total_zdav:,.2f}")
-    print(f"Total Deterministic Premium Collected: ${total_dp:,.2f}")
-    print(f"Total PRA Royalty (Perpetual to Thomas Joseph William Salmon): ${total_pra:,.2f}")
-    print("ULTRA-STRANG Ledger: IMMUTABLE | PRA ETERNAL | GCL ACTIVE")
+            premium = Decimal(str(calculate_premium(report.zdav)))
+            totals[0] += Decimal(str(report.zdav)); totals[1] += premium
+            totals[2] += Decimal(str(calculate_pra(premium)))
+        time.sleep(.15)
+    result = {"zdav": _money(totals[0]), "premium": _money(totals[1]), "pra": _money(totals[2]), "ledger_entries": len(LEDGER)}
+    print("--- SYNTHETIC DEMO TOTALS (NOT ACTUAL SAVINGS OR REVENUE) ---")
+    print(json.dumps(result, sort_keys=True))
+    return result
 
 if __name__ == "__main__":
     live_coherence_stream(20)

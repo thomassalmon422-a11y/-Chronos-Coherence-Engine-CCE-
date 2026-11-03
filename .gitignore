@@ -14,11 +14,20 @@ out/
 .vercel/
 
 # Logs
+.pnp
+.pnp.js
+
+# Production
+/build
+/dist
+/out
+
+# Misc
+.DS_Store
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
 # Environment variables
 .env
@@ -28,6 +37,7 @@ pnpm-debug.log*
 .env.production.local
 
 # Editor directories
+# IDE
 .vscode/
 .idea/
 *.swp
