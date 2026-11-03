@@ -1,5 +1,19 @@
 # Dependencies
 node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.vercel/
+
+# Logs
 .pnp
 .pnp.js
 
@@ -22,6 +36,7 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Editor directories
 # IDE
 .vscode/
 .idea/
@@ -29,5 +44,6 @@ yarn-error.log*
 *.swo
 *~
 
-# Vercel
-.vercel
+# OS files
+.DS_Store
+Thumbs.db
