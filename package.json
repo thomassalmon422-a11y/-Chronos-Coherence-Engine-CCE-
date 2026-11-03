@@ -11,8 +11,5 @@
     "url": "git+https://github.com/thomassalmon422-a11y/-Chronos-Coherence-Engine-CCE-.git"
   },
   "author": "Thomas Joseph William Salmon",
-  "license": "SEE LICENSE IN LICENSE.md.md",
-  "dependencies": {
-    "@vercel/speed-insights": "^1.0.0"
-  }
+  "license": "SEE LICENSE IN LICENSE.md.md"
 }
